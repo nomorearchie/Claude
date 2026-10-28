@@ -1,0 +1,793 @@
+<meta charset="utf-8">
+<title>Sakura Net</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;700;800&family=Mochiy+Pop+One&display=swap">
+<style>
+/* Layout: one-screen game. Sakura park field on the left, a manga-paper side panel (upgrades / collection) on the right; stacks on phones. */
+:root {
+  --paper: #fdf0f4;
+  --panel: #fffafc;
+  --ink: #2a1b3d;
+  --muted: #8a6d86;
+  --line: #ecd3de;
+  --accent: #ff4f8b;
+  --accent-ink: #ffffff;
+  --sky: #c8e9ff;
+  --hill: #b8e0a8;
+  --hill2: #d5edc4;
+  --bloom: #ffc4d8;
+  --r-n: #8f97ab;
+  --r-r: #2f9be8;
+  --r-sr: #a855f7;
+  --r-ssr: #e69500;
+  --r-ur: #ff3d7f;
+  --display: "Mochiy Pop One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --digits: "DotGothic16", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1c1426; --panel: #251a33; --ink: #f7e9f1; --muted: #b79bb5; --line: #3d2c4d;
+    --accent: #ff6b9d; --accent-ink: #1c1426;
+    --sky: #2a2d5e; --hill: #2f5240; --hill2: #273f3a; --bloom: #a8476f;
+    --r-n: #a3abbe; --r-r: #5cb6ff; --r-sr: #c38bff; --r-ssr: #ffbe3d; --r-ur: #ff6b9d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1c1426; --panel: #251a33; --ink: #f7e9f1; --muted: #b79bb5; --line: #3d2c4d;
+  --accent: #ff6b9d; --accent-ink: #1c1426;
+  --sky: #2a2d5e; --hill: #2f5240; --hill2: #273f3a; --bloom: #a8476f;
+  --r-n: #a3abbe; --r-r: #5cb6ff; --r-sr: #c38bff; --r-ssr: #ffbe3d; --r-ur: #ff6b9d;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--body); font-size: 14px;
+  display: flex; flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  box-sizing: border-box; gap: 12px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 1.6rem; margin: 0; letter-spacing: .02em; line-height: 1; }
+h1 span { color: var(--accent); }
+.tagline { color: var(--muted); font-size: .85rem; margin: 2px 0 0; }
+.wallet { margin-left: auto; display: flex; align-items: baseline; gap: 12px; font-family: var(--digits); }
+.wallet .hearts { font-size: 1.9rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.wallet .rate { color: var(--muted); font-size: 1rem; font-variant-numeric: tabular-nums; }
+
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
+.field-wrap { position: relative; min-height: 0; border: 2px solid var(--ink); border-radius: 14px; overflow: hidden; background: var(--sky); }
+#field { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: manipulation; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: .8rem; color: var(--ink); background: var(--panel); border: 1.5px solid var(--ink); border-radius: 999px; padding: 3px 10px; pointer-events: none; }
+
+aside { min-height: 0; display: flex; flex-direction: column; background: var(--panel); border: 2px solid var(--ink); border-radius: 14px; overflow: hidden; }
+.tabs { display: flex; border-bottom: 2px solid var(--ink); }
+.tabs button { flex: 1; font: 700 .95rem var(--body); padding: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--ink); background: var(--paper); box-shadow: inset 0 -4px 0 var(--accent); }
+.tabs button:focus-visible, .upg:focus-visible, .reset:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.pane { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+.upg { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; text-align: left; width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font-family: var(--body); cursor: pointer; }
+.upg:hover:not(:disabled) { border-color: var(--accent); }
+.upg:disabled { cursor: not-allowed; opacity: .55; }
+.upg .nm { font-weight: 800; font-size: .95rem; }
+.upg .lv { font-family: var(--digits); color: var(--muted); font-size: .85rem; justify-self: end; }
+.upg .ds { color: var(--muted); font-size: .8rem; grid-column: 1 / -1; }
+.upg .cost { grid-column: 1 / -1; font-family: var(--digits); color: var(--accent); font-size: .95rem; }
+.upg.maxed .cost { color: var(--muted); }
+
+.coll-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted); font-size: .8rem; }
+.coll-head b { font-family: var(--digits); color: var(--ink); font-weight: 400; font-size: 1rem; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.card { border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 6px 8px; background: var(--paper); display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.card canvas { width: 72px; height: 80px; }
+.card .rar { font-family: var(--digits); font-size: .75rem; letter-spacing: .08em; }
+.card .cn { font-weight: 800; font-size: .85rem; }
+.card .ct { color: var(--muted); font-size: .7rem; text-align: center; }
+.card .cc { font-family: var(--digits); font-size: .75rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.card.unseen .cn, .card.unseen .ct { color: var(--muted); }
+.rar-N { color: var(--r-n); } .rar-R { color: var(--r-r); } .rar-SR { color: var(--r-sr); } .rar-SSR { color: var(--r-ssr); } .rar-UR { color: var(--r-ur); }
+
+.reset { align-self: flex-start; margin-top: 8px; font: .8rem var(--body); color: var(--muted); background: none; border: 1px dashed var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.reset.armed { color: var(--accent); border-color: var(--accent); }
+
+#toasts { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 20; width: min(380px, calc(100% - 32px)); pointer-events: none; }
+.toast { background: var(--panel); color: var(--ink); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 12px; box-shadow: 4px 4px 0 var(--ink); animation: pop .25s ease-out; }
+.toast .t1 { font-family: var(--display); font-size: .95rem; }
+.toast .t2 { font-size: .85rem; color: var(--muted); }
+@keyframes pop { from { transform: translateY(-8px) scale(.96); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  .field-wrap { height: min(62vh, 440px); }
+  aside { max-height: none; }
+  .wallet { margin-left: 0; }
+}
+</style>
+
+<header>
+  <div>
+    <h1>Sakura <span>Net</span></h1>
+    <p class="tagline">Catch wandering girls in the park. Every friend you make brings in hearts, even while you're away.</p>
+  </div>
+  <div class="wallet" aria-live="off">
+    <span class="hearts" id="hearts">&#9829; 0</span>
+    <span class="rate" id="rate">0/s</span>
+  </div>
+</header>
+
+<main>
+  <div class="field-wrap">
+    <canvas id="field" aria-label="Park field. Click or tap a girl to catch her."></canvas>
+    <div class="hint" id="hint">Tap a girl to catch her</div>
+  </div>
+  <aside>
+    <div class="tabs" role="tablist">
+      <button id="tab-upg" role="tab" aria-selected="true" aria-controls="pane-upg">Upgrades</button>
+      <button id="tab-col" role="tab" aria-selected="false" aria-controls="pane-col">Collection</button>
+    </div>
+    <div class="pane" id="pane-upg" role="tabpanel"></div>
+    <div class="pane" id="pane-col" role="tabpanel" hidden>
+      <div class="coll-head"><span>Friends found <b id="found">0/0</b></span><span>Total catches <b id="catches">0</b></span></div>
+      <div class="grid" id="grid"></div>
+      <button class="reset" id="reset">Reset save</button>
+    </div>
+  </aside>
+</main>
+<div id="toasts"></div>
+
+<script>
+(() => {
+"use strict";
+
+// ---------- data ----------
+const RAR = {
+  N:   { w: 60,  hps: 0.4, speed: 34,  tok: "--r-n" },
+  R:   { w: 26,  hps: 2,   speed: 48,  tok: "--r-r" },
+  SR:  { w: 10.5,hps: 9,   speed: 64,  tok: "--r-sr" },
+  SSR: { w: 3,   hps: 40,  speed: 84,  tok: "--r-ssr" },
+  UR:  { w: 0.5, hps: 180, speed: 110, tok: "--r-ur" },
+};
+const CHARS = [
+  { id: "sakura", name: "Sakura", type: "Genki", r: "N", hair: "#ff9cc2", style: "pony", eye: "#e0457b", dress: "#ffd166", acc: "ribbon", accCol: "#ff4f8b", mouth: "open", line: "Yay! Let's be friends forever!" },
+  { id: "hina", name: "Hina", type: "Dandere", r: "N", hair: "#8a5a44", style: "bob", eye: "#6b4a3a", dress: "#a8d8b9", acc: "clip", accCol: "#ffd166", mouth: "small", line: "Oh... um... hello..." },
+  { id: "mio", name: "Mio", type: "Kuudere", r: "N", hair: "#5b7fd6", style: "long", eye: "#3b5bb5", dress: "#e8ecf5", acc: null, mouth: "flat", lids: true, line: "I suppose I'll stay. For now." },
+  { id: "kaede", name: "Kaede", type: "Bookworm", r: "N", hair: "#e8853d", style: "short", eye: "#7a4a22", dress: "#7c9a6e", acc: "glasses", accCol: "#2a1b3d", mouth: "small", line: "You interrupted chapter twelve." },
+  { id: "rin", name: "Rin", type: "Tsundere", r: "R", hair: "#ffd45c", style: "twin", eye: "#d0464f", dress: "#e2445c", acc: "ribbon", accCol: "#2a1b3d", mouth: "pout", line: "I-it's not like I wanted to be caught!" },
+  { id: "yuki", name: "Yuki", type: "Snow Child", r: "R", hair: "#eef4ff", style: "bob", eye: "#4aa8f0", dress: "#9fd3ff", acc: "earmuffs", accCol: "#ff9cc2", mouth: "open", line: "Your hands are so warm!" },
+  { id: "aoi", name: "Aoi", type: "Track Star", r: "R", hair: "#2f6f73", style: "pony", eye: "#2f9e8f", dress: "#ffffff", acc: "headband", accCol: "#ff4f8b", mouth: "grin", line: "Race you to the cafe!" },
+  { id: "mimi", name: "Mimi", type: "Catgirl", r: "SR", hair: "#4a3f5c", style: "short", eye: "#ffc23d", dress: "#ff9cc2", acc: "cat", accCol: "#ff9cc2", mouth: "cat", line: "Nya~ fine, you may pet me." },
+  { id: "inari", name: "Inari", type: "Fox Spirit", r: "SR", hair: "#f2b33d", style: "long", eye: "#c0392b", dress: "#ffffff", acc: "fox", accCol: "#ffffff", mouth: "smile", line: "Bring fried tofu and we have a deal." },
+  { id: "aiko", name: "Aiko", type: "Idol", r: "SR", hair: "#6fe0c4", style: "twin", eye: "#ff4f8b", dress: "#ffffff", acc: "headset", accCol: "#ff4f8b", mouth: "open", line: "Thank you for supporting me!" },
+  { id: "reina", name: "Reina", type: "Ojou-sama", r: "SR", hair: "#c79bff", style: "long", eye: "#7b3fc4", dress: "#ffe7f3", acc: "tiara", accCol: "#ffcf3d", mouth: "smile", line: "Ohohoho! You have excellent taste." },
+  { id: "luna", name: "Luna", type: "Magical Girl", r: "SSR", hair: "#b9a6ff", style: "twin", eye: "#ffcf3d", dress: "#6d5bd0", acc: "witch", accCol: "#3c2f86", mouth: "open", line: "By the light of the moon, I join your team!" },
+  { id: "shizuka", name: "Shizuka", type: "Shrine Maiden", r: "SSR", hair: "#2a2233", style: "long", eye: "#b0213a", dress: "#ffffff", dress2: "#d7263d", acc: "bigribbon", accCol: "#d7263d", mouth: "smile", lids: true, line: "The fortune slip said I'd meet you today." },
+  { id: "seraphina", name: "Seraphina", type: "Angel", r: "UR", hair: "#fff1b8", style: "long", eye: "#4aa8f0", dress: "#ffffff", acc: "halo", accCol: "#ffcf3d", mouth: "smile", line: "Heaven can wait. I'd rather stay here." },
+  { id: "noir", name: "Noir", type: "Little Devil", r: "UR", hair: "#c21f45", style: "twin", eye: "#ffcf3d", dress: "#2a1b3d", acc: "horns", accCol: "#2a1b3d", mouth: "cat", line: "Heh. You caught me? Or did I catch you?" },
+];
+const BY_ID = Object.fromEntries(CHARS.map(c => [c.id, c]));
+const UPGRADES = [
+  { id: "net",   name: "Bigger Net",     base: 15,  g: 1.6, max: 10, desc: L => `Catch radius +${6 * L}px. Easier to land a catch.` },
+  { id: "lure",  name: "Sakura Mochi Lure", base: 25, g: 1.7, max: 15, desc: L => `Girls wander in every ${spawnInterval(L).toFixed(2)}s, up to ${maxOnField(L)} at once.` },
+  { id: "charm", name: "Lucky Omamori",  base: 120, g: 2.1, max: 12, desc: L => `Rare girls appear ${Math.round(L * 25)}% more often.` },
+  { id: "maid",  name: "Helper Maid",    base: 300, g: 2.2, max: 10, desc: L => L ? `Catches a girl for you every ${maidInterval(L).toFixed(1)}s.` : `Hire a maid who catches girls for you.` },
+  { id: "fan",   name: "Fan Club",       base: 500, g: 2.4, max: 20, desc: L => `All hearts per second x${(1 + 0.3 * L).toFixed(1)}.` },
+];
+const spawnInterval = L => 2.6 * Math.pow(0.88, L);
+const maxOnField = L => 4 + Math.floor(L / 2);
+const maidInterval = L => 10 * Math.pow(0.82, L - 1);
+const upCost = (u, L) => Math.ceil(u.base * Math.pow(u.g, L));
+
+// ---------- state ----------
+const SAVE_KEY = "sakura-net-v1";
+const fresh = () => ({ hearts: 0, owned: {}, catches: 0, up: { net: 0, lure: 0, charm: 0, maid: 0, fan: 0 }, t: Date.now() });
+let S = fresh();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) S = Object.assign(fresh(), JSON.parse(raw));
+  } catch (e) {}
+}
+function save() {
+  S.t = Date.now();
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {}
+}
+function hps() {
+  let base = 0;
+  for (const id in S.owned) base += RAR[BY_ID[id].r].hps * S.owned[id];
+  return base * (1 + 0.3 * S.up.fan);
+}
+function charHps(c) { return RAR[c.r].hps * (S.owned[c.id] || 0) * (1 + 0.3 * S.up.fan); }
+
+const UNITS = ["", "K", "M", "B", "T", "Qa", "Qi"];
+function fmt(n) {
+  if (n < 10 && n % 1) return n.toFixed(1);
+  if (n < 1000) return Math.floor(n).toString();
+  let i = 0;
+  while (n >= 1000 && i < UNITS.length - 1) { n /= 1000; i++; }
+  return (n < 100 ? n.toFixed(2) : n.toFixed(1)) + UNITS[i];
+}
+
+// ---------- theme tokens for canvas ----------
+let T = {};
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ["paper", "panel", "ink", "accent", "sky", "hill", "hill2", "bloom", "muted", "r-n", "r-r", "r-sr", "r-ssr", "r-ur"])
+    T[k] = cs.getPropertyValue("--" + k).trim();
+}
+readTokens();
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { readTokens(); renderGrid(true); });
+new MutationObserver(() => { readTokens(); renderGrid(true); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+const rarCol = r => T[RAR[r].tok.slice(2)];
+
+// ---------- girl drawing ----------
+const OUT = "#2a1b3d", SKIN = "#ffe5d6", BLUSH = "rgba(255,110,150,.45)";
+
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  r = Math.round(r * f); g = Math.round(g * f); b = Math.round(b * f);
+  return `rgb(${Math.min(255, r)},${Math.min(255, g)},${Math.min(255, b)})`;
+}
+function blob(ctx, fill, lw) { ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = OUT; ctx.stroke(); }
+
+function drawGirl(ctx, c, x, y, s, t, blink) {
+  const lw = Math.max(1.2, s * 0.07);
+  ctx.save();
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  const hairD = shade(c.hair, 0.82);
+
+  // back hair
+  ctx.beginPath();
+  if (c.style === "long") {
+    ctx.moveTo(x - s * 1.08, y);
+    ctx.bezierCurveTo(x - s * 1.25, y + s * 1.2, x - s * 1.0, y + s * 1.7, x - s * 0.7, y + s * 1.75);
+    ctx.lineTo(x + s * 0.7, y + s * 1.75);
+    ctx.bezierCurveTo(x + s * 1.0, y + s * 1.7, x + s * 1.25, y + s * 1.2, x + s * 1.08, y);
+    ctx.arc(x, y, s * 1.08, 0, Math.PI, true);
+    blob(ctx, hairD, lw);
+  } else if (c.style === "twin") {
+    const sw = Math.sin(t * 3) * 0.08;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(x + side * s * 1.2, y + s * 0.7, s * 0.36, s * 0.95, side * (0.25 + sw), 0, Math.PI * 2);
+      blob(ctx, hairD, lw);
+    }
+    ctx.beginPath(); ctx.arc(x, y, s * 1.08, 0, Math.PI * 2); blob(ctx, hairD, lw);
+  } else if (c.style === "pony") {
+    const sw = Math.sin(t * 3) * 0.15;
+    ctx.ellipse(x + s * 1.0, y - s * 0.1, s * 0.4, s * 1.0, 0.7 + sw, 0, Math.PI * 2);
+    blob(ctx, hairD, lw);
+    ctx.beginPath(); ctx.arc(x, y, s * 1.06, 0, Math.PI * 2); blob(ctx, hairD, lw);
+  } else if (c.style === "bob") {
+    ctx.moveTo(x - s * 1.12, y - s * 0.1);
+    ctx.lineTo(x - s * 1.1, y + s * 0.75);
+    ctx.quadraticCurveTo(x, y + s * 0.95, x + s * 1.1, y + s * 0.75);
+    ctx.lineTo(x + s * 1.12, y - s * 0.1);
+    ctx.arc(x, y - s * 0.05, s * 1.12, 0, Math.PI, true);
+    blob(ctx, hairD, lw);
+  } else {
+    ctx.arc(x, y, s * 1.06, 0, Math.PI * 2); blob(ctx, hairD, lw);
+  }
+
+  // body / dress
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.5, y + s * 0.82);
+  ctx.lineTo(x + s * 0.5, y + s * 0.82);
+  ctx.lineTo(x + s * 0.85, y + s * 1.7);
+  ctx.quadraticCurveTo(x, y + s * 1.9, x - s * 0.85, y + s * 1.7);
+  ctx.closePath();
+  blob(ctx, c.dress, lw);
+  if (c.dress2) {
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.72, y + s * 1.42); ctx.lineTo(x + s * 0.72, y + s * 1.42);
+    ctx.lineTo(x + s * 0.85, y + s * 1.7); ctx.quadraticCurveTo(x, y + s * 1.9, x - s * 0.85, y + s * 1.7);
+    ctx.closePath(); blob(ctx, c.dress2, lw);
+  }
+  // collar
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.3, y + s * 0.84); ctx.lineTo(x, y + s * 1.12); ctx.lineTo(x + s * 0.3, y + s * 0.84);
+  ctx.closePath(); blob(ctx, "#ffffff", lw * 0.8);
+
+  // head
+  ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); blob(ctx, SKIN, lw);
+
+  // ears behind accessories
+  if (c.acc === "cat" || c.acc === "fox") {
+    const tall = c.acc === "fox" ? 1.25 : 0.95;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * s * 0.25, y - s * 0.9);
+      ctx.lineTo(x + side * s * 0.75, y - s * (0.9 + tall));
+      ctx.lineTo(x + side * s * 0.95, y - s * 0.45);
+      ctx.closePath(); blob(ctx, c.hair, lw);
+      ctx.beginPath();
+      ctx.moveTo(x + side * s * 0.42, y - s * 0.95);
+      ctx.lineTo(x + side * s * 0.72, y - s * (0.75 + tall * 0.75));
+      ctx.lineTo(x + side * s * 0.82, y - s * 0.62);
+      ctx.closePath(); ctx.fillStyle = c.accCol; ctx.fill();
+    }
+  }
+
+  // bangs
+  ctx.beginPath();
+  ctx.moveTo(x - s * 1.06, y + s * 0.3);
+  ctx.bezierCurveTo(x - s * 1.18, y - s * 1.5, x + s * 1.18, y - s * 1.5, x + s * 1.06, y + s * 0.3);
+  const zz = [[0.86, -0.02], [0.66, -0.36], [0.48, -0.1], [0.24, -0.44], [0.02, -0.16], [-0.22, -0.46], [-0.46, -0.12], [-0.66, -0.38], [-0.86, -0.02]];
+  for (const [px, py] of zz) ctx.lineTo(x + px * s, y + py * s);
+  ctx.closePath(); blob(ctx, c.hair, lw);
+  // shine
+  ctx.beginPath();
+  ctx.ellipse(x - s * 0.35, y - s * 0.68, s * 0.22, s * 0.07, -0.35, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.fill();
+
+  // eyes
+  for (const side of [-1, 1]) {
+    const ex = x + side * s * 0.4, ey = y + s * 0.14;
+    if (blink) {
+      ctx.beginPath(); ctx.arc(ex, ey - s * 0.02, s * 0.16, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.lineWidth = lw * 1.1; ctx.strokeStyle = OUT; ctx.stroke(); continue;
+    }
+    const ry = c.lids ? s * 0.19 : s * 0.27;
+    const cy = c.lids ? ey + s * 0.06 : ey;
+    ctx.beginPath(); ctx.ellipse(ex, cy, s * 0.19, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = c.eye; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(ex, cy + ry * 0.2, s * 0.1, ry * 0.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(30,15,45,.55)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(ex - s * 0.06, cy - ry * 0.4, s * 0.07, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + s * 0.07, cy + ry * 0.45, s * 0.035, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    if (c.lids) { ctx.moveTo(ex - s * 0.23, cy - ry * 0.85); ctx.lineTo(ex + s * 0.23, cy - ry * 0.85); }
+    else ctx.ellipse(ex, cy, s * 0.21, ry * 1.05, 0, Math.PI * 1.12, Math.PI * 1.88);
+    ctx.lineWidth = lw * 1.3; ctx.strokeStyle = OUT; ctx.stroke();
+  }
+
+  // blush
+  ctx.fillStyle = BLUSH;
+  for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + side * s * 0.62, y + s * 0.48, s * 0.15, s * 0.08, 0, 0, Math.PI * 2); ctx.fill(); }
+
+  // mouth
+  const mx = x, my = y + s * 0.55;
+  ctx.lineWidth = lw * 0.9; ctx.strokeStyle = OUT; ctx.beginPath();
+  switch (c.mouth) {
+    case "open":
+      ctx.moveTo(mx - s * 0.11, my - s * 0.03); ctx.quadraticCurveTo(mx, my + s * 0.2, mx + s * 0.11, my - s * 0.03); ctx.closePath();
+      ctx.fillStyle = "#e0566f"; ctx.fill(); ctx.stroke(); break;
+    case "grin":
+      ctx.moveTo(mx - s * 0.16, my - s * 0.04); ctx.quadraticCurveTo(mx, my + s * 0.16, mx + s * 0.16, my - s * 0.04); ctx.closePath();
+      ctx.fillStyle = "#fff"; ctx.fill(); ctx.stroke(); break;
+    case "cat":
+      ctx.moveTo(mx - s * 0.13, my - s * 0.02); ctx.quadraticCurveTo(mx - s * 0.065, my + s * 0.08, mx, my - s * 0.02);
+      ctx.quadraticCurveTo(mx + s * 0.065, my + s * 0.08, mx + s * 0.13, my - s * 0.02); ctx.stroke(); break;
+    case "pout":
+      ctx.moveTo(mx - s * 0.08, my + s * 0.03); ctx.quadraticCurveTo(mx, my - s * 0.06, mx + s * 0.08, my + s * 0.03); ctx.stroke(); break;
+    case "flat":
+      ctx.moveTo(mx - s * 0.06, my); ctx.lineTo(mx + s * 0.06, my); ctx.stroke(); break;
+    case "small":
+      ctx.arc(mx, my - s * 0.03, s * 0.05, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); break;
+    default:
+      ctx.arc(mx, my - s * 0.07, s * 0.1, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  }
+
+  drawAcc(ctx, c, x, y, s, t, lw);
+  ctx.restore();
+}
+
+function drawAcc(ctx, c, x, y, s, t, lw) {
+  const a = c.accCol;
+  switch (c.acc) {
+    case "ribbon": case "bigribbon": {
+      const k = c.acc === "bigribbon" ? 1.5 : 1;
+      const bx = c.acc === "bigribbon" ? x : x + s * 0.62, by = c.acc === "bigribbon" ? y - s * 1.02 : y - s * 0.78;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(bx, by); ctx.lineTo(bx + side * s * 0.38 * k, by - s * 0.22 * k); ctx.lineTo(bx + side * s * 0.38 * k, by + s * 0.22 * k);
+        ctx.closePath(); blob(ctx, a, lw);
+      }
+      ctx.beginPath(); ctx.arc(bx, by, s * 0.09 * k, 0, Math.PI * 2); blob(ctx, a, lw);
+      break;
+    }
+    case "clip":
+      ctx.beginPath(); ctx.rect(x - s * 0.75, y - s * 0.6, s * 0.32, s * 0.12); blob(ctx, a, lw * 0.8); break;
+    case "glasses":
+      ctx.lineWidth = lw; ctx.strokeStyle = a;
+      for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(x + side * s * 0.4, y + s * 0.16, s * 0.27, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(x - s * 0.13, y + s * 0.12); ctx.lineTo(x + s * 0.13, y + s * 0.12); ctx.stroke(); break;
+    case "earmuffs":
+      ctx.beginPath(); ctx.arc(x, y, s * 1.12, Math.PI * 1.05, Math.PI * 1.95); ctx.lineWidth = lw * 2; ctx.strokeStyle = OUT; ctx.stroke();
+      ctx.lineWidth = lw; ctx.strokeStyle = a; ctx.stroke();
+      for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(x + side * s * 1.05, y + s * 0.05, s * 0.3, 0, Math.PI * 2); blob(ctx, a, lw); }
+      break;
+    case "headband":
+      ctx.beginPath(); ctx.arc(x, y + s * 0.15, s * 1.08, Math.PI * 1.22, Math.PI * 1.78); ctx.lineWidth = s * 0.2; ctx.strokeStyle = OUT; ctx.stroke();
+      ctx.lineWidth = s * 0.13; ctx.strokeStyle = a; ctx.stroke(); break;
+    case "headset":
+      ctx.beginPath(); ctx.arc(x, y, s * 1.14, Math.PI * 1.0, Math.PI * 2.0); ctx.lineWidth = lw * 1.4; ctx.strokeStyle = OUT; ctx.stroke();
+      for (const side of [-1, 1]) { ctx.beginPath(); ctx.ellipse(x + side * s * 1.1, y + s * 0.05, s * 0.17, s * 0.28, 0, 0, Math.PI * 2); blob(ctx, a, lw); }
+      ctx.beginPath(); ctx.moveTo(x - s * 1.08, y + s * 0.25); ctx.quadraticCurveTo(x - s * 0.95, y + s * 0.6, x - s * 0.5, y + s * 0.6);
+      ctx.lineWidth = lw; ctx.stroke(); star(ctx, x + s * 0.55, y - s * 0.95, s * 0.2, "#ffcf3d", lw * 0.8); break;
+    case "tiara":
+      ctx.beginPath(); ctx.moveTo(x - s * 0.42, y - s * 0.86);
+      ctx.lineTo(x - s * 0.36, y - s * 1.22); ctx.lineTo(x - s * 0.16, y - s * 1.0); ctx.lineTo(x, y - s * 1.36);
+      ctx.lineTo(x + s * 0.16, y - s * 1.0); ctx.lineTo(x + s * 0.36, y - s * 1.22); ctx.lineTo(x + s * 0.42, y - s * 0.86);
+      ctx.closePath(); blob(ctx, a, lw);
+      ctx.beginPath(); ctx.arc(x, y - s * 1.0, s * 0.07, 0, Math.PI * 2); ctx.fillStyle = "#ff4f8b"; ctx.fill(); break;
+    case "witch":
+      ctx.beginPath(); ctx.ellipse(x, y - s * 0.86, s * 1.3, s * 0.24, -0.08, 0, Math.PI * 2); blob(ctx, a, lw);
+      ctx.beginPath(); ctx.moveTo(x - s * 0.72, y - s * 0.9); ctx.quadraticCurveTo(x - s * 0.1, y - s * 1.9, x + s * 0.7, y - s * 2.1);
+      ctx.quadraticCurveTo(x + s * 0.3, y - s * 1.6, x + s * 0.72, y - s * 0.95); ctx.closePath(); blob(ctx, a, lw);
+      star(ctx, x + s * 0.05, y - s * 1.2, s * 0.17, "#ffcf3d", lw * 0.8); break;
+    case "halo": {
+      const hy = y - s * 1.45 + Math.sin(t * 2.5) * s * 0.06;
+      ctx.beginPath(); ctx.ellipse(x, hy, s * 0.6, s * 0.16, 0, 0, Math.PI * 2);
+      ctx.lineWidth = s * 0.16; ctx.strokeStyle = OUT; ctx.stroke();
+      ctx.lineWidth = s * 0.09; ctx.strokeStyle = a; ctx.stroke(); break;
+    }
+    case "horns":
+      for (const side of [-1, 1]) {
+        ctx.beginPath(); ctx.moveTo(x + side * s * 0.3, y - s * 0.9);
+        ctx.quadraticCurveTo(x + side * s * 0.4, y - s * 1.5, x + side * s * 0.75, y - s * 1.55);
+        ctx.quadraticCurveTo(x + side * s * 0.55, y - s * 1.2, x + side * s * 0.65, y - s * 0.75);
+        ctx.closePath(); blob(ctx, "#4b2a5e", lw);
+      }
+      break;
+  }
+}
+function star(ctx, x, y, r, fill, lw) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+    ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath(); blob(ctx, fill, lw);
+}
+function heart(ctx, x, y, r) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + r * 0.9);
+  ctx.bezierCurveTo(x - r * 1.4, y - r * 0.1, x - r * 0.6, y - r * 1.2, x, y - r * 0.4);
+  ctx.bezierCurveTo(x + r * 0.6, y - r * 1.2, x + r * 1.4, y - r * 0.1, x, y + r * 0.9);
+  ctx.closePath();
+}
+
+// ---------- field ----------
+const cv = document.getElementById("field");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  const r = cv.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+new ResizeObserver(resize).observe(cv);
+resize();
+
+const girls = [], parts = [], rings = [];
+const petals = Array.from({ length: 22 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 6.28, v: 0.03 + Math.random() * 0.04, s: 3 + Math.random() * 3 }));
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const girlSize = () => Math.max(16, Math.min(32, H * 0.06));
+
+function rollChar() {
+  const boost = 1 + 0.25 * S.up.charm;
+  const ws = Object.entries(RAR).map(([k, v]) => [k, k === "N" ? v.w : v.w * boost]);
+  let sum = ws.reduce((a, b) => a + b[1], 0), r = Math.random() * sum, rar = "N";
+  for (const [k, w] of ws) { if ((r -= w) < 0) { rar = k; break; } }
+  const pool = CHARS.filter(c => c.r === rar);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function spawn() {
+  if (girls.filter(g => g.state === "live").length >= maxOnField(S.up.lure) || W < 50) return;
+  const c = rollChar(), s = girlSize();
+  const fromLeft = Math.random() < 0.5;
+  const sp = RAR[c.r].speed * (0.8 + Math.random() * 0.4) * (W / 700 * 0.5 + 0.5);
+  girls.push({
+    c, s, x: fromLeft ? -s * 1.5 : W + s * 1.5,
+    by: H * 0.42 + Math.random() * (H * 0.45 - s * 2),
+    vx: fromLeft ? sp : -sp, age: 0, life: 7 + Math.random() * 4,
+    ph: Math.random() * 6.28, state: "live", k: 0, blinkAt: Math.random() * 3,
+  });
+}
+function catchGirl(g, byMaid) {
+  g.state = "caught"; g.k = 0;
+  const c = g.c, first = !S.owned[c.id];
+  S.owned[c.id] = (S.owned[c.id] || 0) + 1;
+  S.catches++;
+  const gain = RAR[c.r].hps * 6 * (1 + 0.3 * S.up.fan);
+  S.hearts += gain;
+  const gy = g.by + Math.sin(g.age * 2 + g.ph) * 6;
+  for (let i = 0; i < (reduceMotion ? 3 : 10); i++)
+    parts.push({ x: g.x, y: gy, vx: (Math.random() - 0.5) * 140, vy: -60 - Math.random() * 120, life: 0.9 + Math.random() * 0.4, age: 0, r: 4 + Math.random() * 4 });
+  parts.push({ x: g.x, y: gy - g.s * 1.6, vx: 0, vy: -40, life: 1.2, age: 0, text: "+" + fmt(gain) + " ♥" });
+  if (first) toast(`New friend! ${c.name} <span class="rar-${c.r}">${c.r}</span>`, `${c.type}. “${c.line}”`);
+  else if (c.r === "SSR" || c.r === "UR") toast(`${c.name} again! x${S.owned[c.id]}`, `${c.type}. Her hearts per second went up.`);
+  else if (byMaid && Math.random() < 0.15) toast("Your maid caught " + c.name, "");
+  dirty.add(c.id);
+  document.getElementById("hint").hidden = true;
+}
+
+cv.addEventListener("pointerdown", e => {
+  const r = cv.getBoundingClientRect();
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  const reach = 6 * S.up.net;
+  rings.push({ x: px, y: py, r: girlSize() * 1.2 + reach, age: 0 });
+  let best = null, bd = Infinity;
+  for (const g of girls) {
+    if (g.state !== "live") continue;
+    const gy = g.by + Math.sin(g.age * 2 + g.ph) * 6 + g.s * 0.4;
+    const d = Math.hypot(px - g.x, py - gy);
+    if (d < g.s * 1.35 + reach && d < bd) { bd = d; best = g; }
+  }
+  if (best) catchGirl(best, false);
+});
+
+function drawBackground(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, T.sky); g.addColorStop(0.75, T.paper);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // far hill
+  ctx.fillStyle = T.hill2;
+  ctx.beginPath(); ctx.moveTo(0, H * 0.45);
+  ctx.quadraticCurveTo(W * 0.3, H * 0.3, W * 0.62, H * 0.42); ctx.quadraticCurveTo(W * 0.85, H * 0.5, W, H * 0.38);
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+  // blossom trees on the ridge
+  for (const [fx, fy, fr] of [[0.12, 0.36, 0.09], [0.2, 0.33, 0.07], [0.82, 0.38, 0.1], [0.92, 0.33, 0.07]]) {
+    ctx.fillStyle = T.bloom;
+    ctx.beginPath(); ctx.arc(W * fx, H * fy, Math.min(W, H) * fr, 0, 6.28);
+    ctx.arc(W * fx + Math.min(W, H) * fr * 0.7, H * fy + 6, Math.min(W, H) * fr * 0.7, 0, 6.28);
+    ctx.arc(W * fx - Math.min(W, H) * fr * 0.7, H * fy + 8, Math.min(W, H) * fr * 0.6, 0, 6.28); ctx.fill();
+  }
+  // near hill
+  ctx.fillStyle = T.hill;
+  ctx.beginPath(); ctx.moveTo(0, H * 0.62);
+  ctx.quadraticCurveTo(W * 0.5, H * 0.5, W, H * 0.66); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+  // halftone screen-tone on near hill
+  ctx.fillStyle = T.ink; ctx.globalAlpha = 0.07;
+  for (let yy = H * 0.7; yy < H; yy += 9) for (let xx = (yy / 9 % 2) * 4.5; xx < W; xx += 9) {
+    ctx.beginPath(); ctx.arc(xx, yy, 1.2 + (yy - H * 0.7) / H * 4, 0, 6.28); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawPetals(dt) {
+  ctx.fillStyle = T.bloom;
+  for (const p of petals) {
+    if (!reduceMotion) { p.y += p.v * dt; p.x += Math.sin(p.y * 8 + p.r) * 0.0008 + 0.0004; p.r += dt; }
+    if (p.y > 1.05) { p.y = -0.05; p.x = Math.random(); }
+    if (p.x > 1.05) p.x = -0.05;
+    ctx.save(); ctx.translate(p.x * W, p.y * H); ctx.rotate(p.r);
+    ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * 0.55, 0, 0, 6.28); ctx.fill(); ctx.restore();
+  }
+}
+
+// ---------- loop ----------
+let last = performance.now(), spawnT = 0.3, maidT = 0, uiT = 0, saveT = 0, clock = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; clock += dt;
+  S.hearts += hps() * dt;
+
+  spawnT -= dt;
+  if (spawnT <= 0) { spawn(); spawnT = spawnInterval(S.up.lure) * (0.7 + Math.random() * 0.6); }
+  if (S.up.maid > 0) {
+    maidT += dt;
+    if (maidT >= maidInterval(S.up.maid)) {
+      const live = girls.filter(g => g.state === "live" && g.x > 0 && g.x < W);
+      if (live.length) {
+        maidT = 0;
+        const g = live[Math.floor(Math.random() * live.length)];
+        rings.push({ x: g.x, y: g.by + g.s * 0.4, r: g.s * 1.6, age: 0, maid: true });
+        catchGirl(g, true);
+      }
+    }
+  }
+
+  drawBackground(clock);
+  drawPetals(dt);
+
+  girls.sort((a, b) => a.by - b.by);
+  for (let i = girls.length - 1; i >= 0; i--) {
+    const g = girls[i];
+    g.age += dt;
+    if (g.state === "live") {
+      g.x += g.vx * dt;
+      if ((g.x < g.s && g.vx < 0 && g.age < g.life) || (g.x > W - g.s && g.vx > 0 && g.age < g.life)) {
+        if (g.age > 1) g.vx = -g.vx;
+      }
+      if (g.age > g.life) { g.state = "leaving"; g.k = 0; }
+    } else { g.k += dt; if (g.state === "leaving") g.x += g.vx * dt * 1.6; }
+    if ((g.state === "caught" && g.k > 0.45) || (g.state === "leaving" && (g.k > 0.8 || g.x < -60 || g.x > W + 60))) { girls.splice(i, 1); }
+  }
+  for (const g of girls) {
+    const y = g.by + Math.sin(g.age * 2 + g.ph) * 6;
+    ctx.save();
+    // shadow
+    ctx.fillStyle = T.ink; ctx.globalAlpha = 0.12;
+    ctx.beginPath(); ctx.ellipse(g.x, g.by + g.s * 2.2, g.s * 0.8, g.s * 0.18, 0, 0, 6.28); ctx.fill();
+    ctx.globalAlpha = g.state === "leaving" ? Math.max(0, 1 - g.k / 0.8) : g.state === "caught" ? Math.max(0, 1 - g.k / 0.45) : 1;
+    const sc = g.state === "caught" ? 1 + g.k * 0.8 : 1;
+    const rc = rarCol(g.c.r);
+    if (g.c.r !== "N") {
+      const glow = ctx.createRadialGradient(g.x, y + g.s * 0.4, g.s * 0.5, g.x, y + g.s * 0.4, g.s * 2.3);
+      glow.addColorStop(0, rc + "66"); glow.addColorStop(1, rc + "00");
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(g.x, y + g.s * 0.4, g.s * 2.3, 0, 6.28); ctx.fill();
+    }
+    const blink = ((g.age + g.blinkAt) % 3.2) < 0.12;
+    ctx.translate(g.x, y); ctx.scale(sc * (g.vx < 0 ? -1 : 1), sc);
+    drawGirl(ctx, g.c, 0, 0, g.s, g.age, blink);
+    ctx.restore();
+    if (g.state === "live" && g.c.r !== "N") {
+      ctx.font = `400 ${Math.round(g.s * 0.45)}px DotGothic16, monospace`;
+      ctx.textAlign = "center"; ctx.fillStyle = rc;
+      ctx.fillText(g.c.r, g.x, y - g.s * 1.75);
+    }
+  }
+
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i]; r.age += dt;
+    if (r.age > 0.35) { rings.splice(i, 1); continue; }
+    ctx.globalAlpha = 1 - r.age / 0.35;
+    ctx.lineWidth = 3; ctx.strokeStyle = r.maid ? T.ink : T.accent;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.arc(r.x, r.y, r.r * (0.6 + r.age), 0, 6.28); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.age += dt;
+    if (p.age > p.life) { parts.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; if (!p.text) p.vy += 160 * dt;
+    ctx.globalAlpha = 1 - p.age / p.life;
+    if (p.text) {
+      ctx.font = "400 16px DotGothic16, monospace"; ctx.textAlign = "center";
+      ctx.lineWidth = 3; ctx.strokeStyle = T.paper; ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillStyle = T.accent; ctx.fillText(p.text, p.x, p.y);
+    } else { ctx.fillStyle = T.accent; heart(ctx, p.x, p.y, p.r); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+
+  uiT += dt; saveT += dt;
+  if (uiT > 0.1) { uiT = 0; updateUI(); }
+  if (saveT > 5) { saveT = 0; save(); }
+  requestAnimationFrame(frame);
+}
+
+// ---------- UI ----------
+const elHearts = document.getElementById("hearts"), elRate = document.getElementById("rate");
+const paneUpg = document.getElementById("pane-upg"), paneCol = document.getElementById("pane-col");
+const grid = document.getElementById("grid");
+const upBtns = {};
+for (const u of UPGRADES) {
+  const b = document.createElement("button");
+  b.className = "upg"; b.id = "upg-" + u.id;
+  b.innerHTML = `<span class="nm"></span><span class="lv"></span><span class="ds"></span><span class="cost"></span>`;
+  b.addEventListener("click", () => {
+    const L = S.up[u.id];
+    if (L >= u.max) return;
+    const cost = upCost(u, L);
+    if (S.hearts < cost) return;
+    S.hearts -= cost; S.up[u.id]++;
+    if (u.id === "fan") CHARS.forEach(c => dirty.add(c.id));
+    updateUI(); save();
+  });
+  paneUpg.appendChild(b); upBtns[u.id] = b;
+}
+const tip = document.createElement("p");
+tip.className = "coll-head";
+tip.textContent = "Rarer girls move faster and glow. Repeat catches stack her hearts per second.";
+paneUpg.appendChild(tip);
+
+const cards = {};
+const dirty = new Set(CHARS.map(c => c.id));
+for (const c of CHARS) {
+  const d = document.createElement("div");
+  d.className = "card";
+  d.innerHTML = `<canvas width="144" height="160"></canvas><span class="rar rar-${c.r}">${c.r}</span><span class="cn"></span><span class="ct"></span><span class="cc"></span>`;
+  grid.appendChild(d); cards[c.id] = d;
+}
+function renderGrid(all) {
+  if (all) CHARS.forEach(c => dirty.add(c.id));
+  for (const id of dirty) {
+    const c = BY_ID[id], d = cards[id], n = S.owned[id] || 0;
+    const cx = d.querySelector("canvas").getContext("2d");
+    cx.clearRect(0, 0, 144, 160);
+    drawGirl(cx, c, 72, 62, 34, 0, false);
+    if (!n) {
+      cx.globalCompositeOperation = "source-in"; cx.fillStyle = T.muted; cx.globalAlpha = 0.5;
+      cx.fillRect(0, 0, 144, 160);
+      cx.globalCompositeOperation = "source-over"; cx.globalAlpha = 1;
+    }
+    d.classList.toggle("unseen", !n);
+    d.querySelector(".cn").textContent = n ? c.name : "???";
+    d.querySelector(".ct").textContent = n ? c.type : "Not met yet";
+    d.querySelector(".cc").textContent = n ? `x${n} · ${fmt(charHps(c))}/s` : " ";
+  }
+  dirty.clear();
+  const found = CHARS.filter(c => S.owned[c.id]).length;
+  document.getElementById("found").textContent = `${found}/${CHARS.length}`;
+  document.getElementById("catches").textContent = fmt(S.catches);
+}
+function updateUI() {
+  elHearts.textContent = "♥ " + fmt(S.hearts);
+  elRate.textContent = fmt(hps()) + "/s";
+  for (const u of UPGRADES) {
+    const b = upBtns[u.id], L = S.up[u.id], maxed = L >= u.max, cost = upCost(u, L);
+    b.querySelector(".nm").textContent = u.name;
+    b.querySelector(".lv").textContent = `Lv ${L}/${u.max}`;
+    b.querySelector(".ds").textContent = (maxed ? "" : "Next: ") + u.desc(maxed ? L : L + 1);
+    b.querySelector(".cost").textContent = maxed ? "Maxed out" : `♥ ${fmt(cost)}`;
+    b.classList.toggle("maxed", maxed);
+    b.disabled = maxed || S.hearts < cost;
+  }
+  if (dirty.size) renderGrid(false);
+}
+
+const tabUpg = document.getElementById("tab-upg"), tabCol = document.getElementById("tab-col");
+function showTab(which) {
+  tabUpg.setAttribute("aria-selected", which === "upg");
+  tabCol.setAttribute("aria-selected", which === "col");
+  paneUpg.hidden = which !== "upg"; paneCol.hidden = which !== "col";
+  try { localStorage.setItem(SAVE_KEY + "-tab", which); } catch (e) {}
+}
+tabUpg.addEventListener("click", () => showTab("upg"));
+tabCol.addEventListener("click", () => showTab("col"));
+
+const resetBtn = document.getElementById("reset");
+let resetTimer = 0;
+resetBtn.addEventListener("click", () => {
+  if (!resetBtn.classList.contains("armed")) {
+    resetBtn.classList.add("armed"); resetBtn.textContent = "Click again to erase everything";
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => { resetBtn.classList.remove("armed"); resetBtn.textContent = "Reset save"; }, 3000);
+    return;
+  }
+  S = fresh(); save(); girls.length = 0;
+  resetBtn.classList.remove("armed"); resetBtn.textContent = "Reset save";
+  renderGrid(true); updateUI(); toast("Save erased", "The park is quiet again.");
+});
+
+const toastBox = document.getElementById("toasts");
+function toast(t1, t2) {
+  const d = document.createElement("div");
+  d.className = "toast";
+  d.innerHTML = `<div class="t1">${t1}</div>${t2 ? `<div class="t2">${t2}</div>` : ""}`;
+  toastBox.appendChild(d);
+  while (toastBox.children.length > 3) toastBox.firstChild.remove();
+  setTimeout(() => d.remove(), 3800);
+}
+
+document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+window.addEventListener("pagehide", save);
+
+// ---------- boot ----------
+function start(data) {
+  if (data && data.S) S = Object.assign(fresh(), data.S);
+  else load();
+  const away = (Date.now() - (S.t || Date.now())) / 1000;
+  if (away > 30 && hps() > 0) {
+    const gain = hps() * Math.min(away, 8 * 3600);
+    S.hearts += gain;
+    setTimeout(() => toast("Welcome back!", `Your friends earned ♥ ${fmt(gain)} while you were away.`), 400);
+  }
+  try { if (localStorage.getItem(SAVE_KEY + "-tab") === "col") showTab("col"); } catch (e) {}
+  if (S.catches) document.getElementById("hint").hidden = true;
+  for (let i = 0; i < 3; i++) { spawn(); const g = girls[girls.length - 1]; if (g) { g.x = W * (0.2 + 0.3 * i); g.age = 1.2; } }
+  renderGrid(true); updateUI();
+  requestAnimationFrame(t => { last = t; frame(t); });
+}
+window.claude?.hot?.snapshot?.(() => ({ S }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
